@@ -1,6 +1,6 @@
 #import "TargetConditionals.h"
 
-#if TARGET_CPU_ARM64 || TARGET_OS_IOS
+#if TARGET_CPU_ARM64 && TARGET_OS_OSX
 
 	class MTLReadPixels {
 	
@@ -31,12 +31,20 @@
 				for(int k=0; k<this->_width*this->_height; k++) {
 					this->_bytes[k] = 0xFF000000;
 				}
-	
-				NSString *metallib = [NSString stringWithFormat:@"%@/%s",
-					[[NSBundle mainBundle] bundlePath],
-					"copy.metallib"
-				];
+                
+#ifdef TARGET_OS_OSX
+
+                NSString *metallib = [NSString stringWithFormat:@"%@/%s",
+                    [[NSBundle mainBundle] bundlePath],
+                    "copy-macos.metallib"
+                ];
+                
+#else
+
+                NSString *metallib = [[NSBundle mainBundle] pathForResource:@"copy-iphoneos" ofType:@"metallib"];
 				
+#endif
+                
 				NSError *err = nil;
 				NSFileManager *fileManager = [NSFileManager defaultManager];
 				[fileManager attributesOfItemAtPath:metallib error:&err];
@@ -47,6 +55,7 @@
 						
 					NSDictionary *attributes = [fileManager attributesOfItemAtPath:metallib error:&err];
 					long size = [[attributes objectForKey:NSFileSize] integerValue];
+                    NSLog(@"%ld",size);
 					
 					if(size>0) {
 						
@@ -68,7 +77,8 @@
 								id<MTLFunction> function = [library newFunctionWithName:@"copy"];
 								this->_pipelineState = [this->_device newComputePipelineStateWithFunction:function error:nil];
 								if(!err) {
-									this->_isInit = true; 
+									this->_isInit = true;
+                                    NSLog(@"load copy.metallib");
 								}
 							}
 							dispatch_semaphore_signal(this->_semaphore);
@@ -88,9 +98,9 @@
 				return this->_bytes;
 			}
 			
-			void setDrawableTexture(id<MTLTexture> src) {
+			void setDrawableTexture(id<MTLTexture> src,int type=1) {
 							
-				if(this->_isInit) {
+				if(type>=1&&this->_isInit) {
 					id<MTLCommandQueue> queue = [this->_device newCommandQueue];
 					id<MTLCommandBuffer> commandBuffer = queue.commandBuffer;
 					id<MTLComputeCommandEncoder> encoder = commandBuffer.computeCommandEncoder;
@@ -100,8 +110,8 @@
 					[encoder setBuffer:this->_clip offset:0 atIndex:0];
 					MTLSize threadGroupSize = MTLSizeMake(8,8,1);
 					MTLSize threadGroups = MTLSizeMake(
-						std::ceil(this->_width/(double)threadGroupSize.width),
-						std::ceil(this->_height/(double)threadGroupSize.height),
+						ceil(this->_width/(double)threadGroupSize.width),
+						ceil(this->_height/(double)threadGroupSize.height),
 					1);
 					[encoder dispatchThreadgroups:threadGroups threadsPerThreadgroup:threadGroupSize];
 					[encoder endEncoding];
@@ -111,14 +121,17 @@
 					}];
 					[commandBuffer commit];
 					[commandBuffer waitUntilCompleted];
+                    dispatch_semaphore_wait(this->_semaphore,DISPATCH_TIME_FOREVER);
 				}
+                else {
+                    [src getBytes:this->_bytes bytesPerRow:(this->_width<<2) fromRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0];
+                }
 				
-				dispatch_semaphore_wait(this->_semaphore,DISPATCH_TIME_FOREVER);
 				
 			}
 	};
 
-#elif TARGET_CPU_X86_64
+#else
 	
 	class MTLReadPixels {
 		
