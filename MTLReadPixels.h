@@ -22,7 +22,7 @@ class MTLReadPixels {
         
     public:
         
-        MTLReadPixels(int w,int h) {
+        MTLReadPixels(int w,int h, NSString *identifier=nil) {
             
             this->_width = w;
             this->_height = h;
@@ -34,7 +34,16 @@ class MTLReadPixels {
             
     #ifdef TARGET_OS_OSX
             
-            NSString *metallib = [NSString stringWithFormat:@"%@/%s",[[NSBundle mainBundle] bundlePath],"copy-macosx.metallib"];
+            NSString *path;
+            if(identifier==nil) {
+                path = [[NSBundle mainBundle] bundlePath];
+            }
+            else {
+                NSBundle *bundle = [NSBundle bundleWithIdentifier:@"jit.metal.map"];
+                path = [bundle resourcePath];
+            }
+            
+            NSString *metallib = [NSString stringWithFormat:COPY_SHADER_PATH,path,"copy-macosx.metallib"];            
             
     #else
             
