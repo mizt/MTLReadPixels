@@ -43,7 +43,7 @@ class MTLReadPixels {
                 path = [bundle resourcePath];
             }
             
-            NSString *metallib = [NSString stringWithFormat:COPY_SHADER_PATH,path,"copy-macosx.metallib"];            
+            NSString *metallib = [NSString stringWithFormat:@"%@/%s",path,"copy-macosx.metallib"];
             
     #else
             
