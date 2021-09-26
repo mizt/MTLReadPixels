@@ -39,7 +39,7 @@ class MTLReadPixels {
                 path = [[NSBundle mainBundle] bundlePath];
             }
             else {
-                NSBundle *bundle = [NSBundle bundleWithIdentifier:@"jit.metal.map"];
+                NSBundle *bundle = [NSBundle bundleWithIdentifier:identifier];
                 path = [bundle resourcePath];
             }
             
