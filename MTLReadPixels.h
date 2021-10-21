@@ -23,6 +23,7 @@ class MTLReadPixels {
 
         MTLPixelFormat PixelFormat8Unorm = MTLPixelFormatRGBA8Unorm;
     
+        std::string type() { return this->_buffer->type(); }
         int width() { return this->_buffer->width(); }
         int height() { return this->_buffer->height(); }
         int bpp() { return this->_buffer->bpp(); }
@@ -181,12 +182,13 @@ class MTLReadPixels {
     
     public:
     
+        std::string type() { return this->_buffer->type(); }
         int width() { return this->_buffer->width(); }
         int height() { return this->_buffer->height(); }
         int bpp() { return this->_buffer->bpp(); }
         void *bytes() { return this->_buffer->bytes(); }
         unsigned int rowBytes() { return this->_buffer->rowBytes(); }
-    
+        
         MTLReadPixels(int w,int h, int bpp=4) {
             
             this->_buffer = new PixelBuffer<T>(w,h,bpp);
