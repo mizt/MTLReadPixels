@@ -6,23 +6,23 @@ class MTLReadPixelsBasse {
 
     protected:
         
-        PixelBuffer<T> *_buffer;
+        PixelBuffer<T> *_pixelbuffer;
     
     public:
     
-        std::string type() { return this->_buffer->type(); }
-        int width() { return this->_buffer->width(); }
-        int height() { return this->_buffer->height(); }
-        int bpp() { return this->_buffer->bpp(); }
-        void *bytes() { return this->_buffer->bytes(); }
-        unsigned int rowBytes() { return this->_buffer->rowBytes(); }
+        std::string type() { return this->_bu_pixelbufferffer->type(); }
+        int width() { return this->_pixelbuffer->width(); }
+        int height() { return this->_pixelbuffer->height(); }
+        int bpp() { return this->_pixelbuffer->bpp(); }
+        void *bytes() { return this->_pixelbuffer->bytes(); }
+        unsigned int rowBytes() { return this->_pixelbuffer->rowBytes(); }
         
         MTLReadPixelsBasse(int w,int h, int bpp=4) {
-            this->_buffer = new PixelBuffer<T>(w,h,bpp);
+            this->_pixelbuffer = new PixelBuffer<T>(w,h,bpp);
         }
     
         ~MTLReadPixelsBasse() {
-            delete this->_buffer;
+            delete this->_pixelbuffer;
         }
 };
 
@@ -76,7 +76,7 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                                                         
                             MTLTextureDescriptor *texDescriptor = nil;
                             
-                            if(this->_buffer->type()=="f") {
+                            if(this->_pixelbuffer->type()=="f") {
                                 if(bpp==4) {
                                     texDescriptor = MTLUtils::descriptor(MTLPixelFormatRGBA32Float,this->width(),this->height());
                                 }
@@ -87,10 +87,10 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                                     texDescriptor = MTLUtils::descriptor(MTLPixelFormatR32Float,this->width(),this->height());
                                 }
                             }
-                            else if(this->_buffer->type()=="S"&&bpp==4) {
+                            else if(this->_pixelbuffer->type()=="S"&&bpp==4) {
                                 texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG16Unorm,this->width(),this->height());
                             }
-                            else if(this->_buffer->type()=="I"&&bpp==4) {
+                            else if(this->_pixelbuffer->type()=="I"&&bpp==4) {
                                 texDescriptor = MTLUtils::descriptor(this->PixelFormat8Unorm,this->width(),this->height());
                             }
                             
@@ -148,7 +148,7 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                     [encoder endEncoding];
                     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
                         
-                        [this->_texture getBytes:this->_buffer->bytes() bytesPerRow:this->_buffer->rowBytes() fromRegion:MTLRegionMake2D(0,0,this->_buffer->width(),this->_buffer->height()) mipmapLevel:0];
+                        [this->_texture getBytes:this->_pixelbuffer->bytes() bytesPerRow:this->_pixelbuffer->rowBytes() fromRegion:MTLRegionMake2D(0,0,this->_pixelbuffer->width(),this->_pixelbuffer->height()) mipmapLevel:0];
                         dispatch_semaphore_signal(this->_semaphore);
                     }];
                     [commandBuffer commit];
@@ -156,13 +156,13 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                     
                     dispatch_semaphore_wait(this->_semaphore,DISPATCH_TIME_FOREVER);
 
-                    return this->_buffer->bytes();
+                    return this->_pixelbuffer->bytes();
                 }
                 else {
                                         
-                    [src getBytes:this->_buffer->bytes() bytesPerRow:this->_buffer->rowBytes() fromRegion:MTLRegionMake2D(0,0,this->_buffer->width(),this->_buffer->height()) mipmapLevel:0];
+                    [src getBytes:this->_pixelbuffer->bytes() bytesPerRow:this->_pixelbuffer->rowBytes() fromRegion:MTLRegionMake2D(0,0,this->_pixelbuffer->width(),this->_pixelbuffer->height()) mipmapLevel:0];
                     
-                    return this->_buffer->bytes();
+                    return this->_pixelbuffer->bytes();
                 }
             }
             
@@ -181,9 +181,9 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
         
         void *getBytes(id<MTLTexture> src, bool shader=false) {
             if(src) {
-                [src getBytes:this->_buffer->bytes() bytesPerRow:this->_buffer->rowBytes() fromRegion:MTLRegionMake2D(0,0,this->_buffer->width(),this->_buffer->height()) mipmapLevel:0];
+                [src getBytes:this->_pixelbuffer->bytes() bytesPerRow:this->_pixelbuffer->rowBytes() fromRegion:MTLRegionMake2D(0,0,this->_pixelbuffer->width(),this->_pixelbuffer->height()) mipmapLevel:0];
                 
-                return this->_buffer->bytes();
+                return this->_pixelbuffer->bytes();
             }
         
             return nullptr;
