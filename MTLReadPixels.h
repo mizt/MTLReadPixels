@@ -1,27 +1,14 @@
 #import "TargetConditionals.h"
 #import "PixelBuffer.h"
 
-#if TARGET_CPU_ARM64 && TARGET_OS_OSX
-
 template <typename T>
-class MTLReadPixels {
+class MTLReadPixelsBasse {
 
-    private:
+    protected:
         
-        id<MTLDevice> _device = MTLCreateSystemDefaultDevice();
-        id<MTLTexture> _texture;
-        id<MTLBuffer> _clip;
-        id<MTLComputePipelineState> _pipelineState;
-        
-        dispatch_semaphore_t _semaphore = dispatch_semaphore_create(0);
-                
-        bool _isInit = false;
-    
         PixelBuffer<T> *_buffer;
-
+    
     public:
-
-        MTLPixelFormat PixelFormat8Unorm = MTLPixelFormatRGBA8Unorm;
     
         std::string type() { return this->_buffer->type(); }
         int width() { return this->_buffer->width(); }
@@ -29,28 +16,42 @@ class MTLReadPixels {
         int bpp() { return this->_buffer->bpp(); }
         void *bytes() { return this->_buffer->bytes(); }
         unsigned int rowBytes() { return this->_buffer->rowBytes(); }
-    
-        MTLReadPixels(int w,int h, int bpp=4, NSString *identifier=nil) {
-            
+        
+        MTLReadPixelsBasse(int w,int h, int bpp=4) {
             this->_buffer = new PixelBuffer<T>(w,h,bpp);
+        }
+    
+        ~MTLReadPixelsBasse() {
+            delete this->_buffer;
+        }
+};
 
+#if TARGET_CPU_ARM64 && TARGET_OS_OSX
+
+template <typename T>
+class MTLReadPixels : public MTLReadPixelsBasse<T> {
+
+    private:
+    
+        bool _isInit = false;
+        
+        id<MTLDevice> _device = MTLCreateSystemDefaultDevice();
+        id<MTLTexture> _texture;
+        id<MTLBuffer> _clip;
+        id<MTLComputePipelineState> _pipelineState;
+            
+        dispatch_semaphore_t _semaphore = dispatch_semaphore_create(0);
+                
+        MTLPixelFormat PixelFormat8Unorm = MTLPixelFormatRGBA8Unorm;
+
+    public:
+        
+        MTLReadPixels(int w,int h, int bpp=4, NSString *identifier=nil) : MTLReadPixelsBasse<T>(w,h,bpp) {
+            
     #ifdef TARGET_OS_OSX
-            
-            NSString *path;
-            if(identifier==nil) {
-                path = [[NSBundle mainBundle] bundlePath];
-            }
-            else {
-                NSBundle *bundle = [NSBundle bundleWithIdentifier:identifier];
-                path = [bundle resourcePath];
-            }
-            
-            NSString *metallib = [NSString stringWithFormat:@"%@/%s",path,"copy-macosx.metallib"];
-            
+            NSString *metallib = MTLUtils::path(@"copy-macosx.metallib",identifier);
     #else
-            
-            NSString *metallib = [[NSBundle mainBundle] pathForResource:@"copy-iphoneos" ofType:@"metallib"];
-            
+            NSString *metallib = MTLUtils::path(@"copy-iphoneos.metallib",identifier);
     #endif
             
             NSError *err = nil;
@@ -77,26 +78,27 @@ class MTLReadPixels {
                             
                             if(this->_buffer->type()=="f") {
                                 if(bpp==4) {
-                                    texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA32Float width:this->width() height:this->height() mipmapped:NO];
+                                    texDescriptor = MTLUtils::descriptor(MTLPixelFormatRGBA32Float,this->width(),this->height());
+                                    
                                 }
                                 else if(bpp==2) {
-                                    texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRG32Float width:this->width() height:this->height() mipmapped:NO];
+                                    texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG32Float,this->width(),this->height());
                                 }
                                 else if(bpp==1) {
-                                    texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float width:this->width() height:this->height() mipmapped:NO];
+                                    texDescriptor = MTLUtils::descriptor(MTLPixelFormatR32Float,this->width(),this->height());
                                 }
                             }
                             else if(this->_buffer->type()=="S"&&bpp==4) {
-                                texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRG16Unorm width:this->width() height:this->height() mipmapped:NO];
+                                texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG16Unorm,this->width(),this->height());
                             }
                             else if(this->_buffer->type()=="I"&&bpp==4) {
-                                texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:this->PixelFormat8Unorm width:this->width() height:this->height() mipmapped:NO];
+                                texDescriptor = MTLUtils::descriptor(this->PixelFormat8Unorm,this->width(),this->height());
                             }
                             
                             if(texDescriptor) {
                                 texDescriptor.usage = MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
                                 this->_texture = [this->_device newTextureWithDescriptor:texDescriptor];
-                                this->_clip = [this->_device newBufferWithLength:sizeof(unsigned int)*2 options:MTLResourceOptionCPUCacheModeDefault];
+                                this->_clip = MTLUtils::newBuffer(this->_device,sizeof(unsigned int)*2);
                                 unsigned int *clipContents = (unsigned int *)[this->_clip contents];
                                 clipContents[0] = this->width();
                                 clipContents[1] = this->height();
@@ -106,7 +108,6 @@ class MTLReadPixels {
                                     this->_isInit = true;
                                 }
                             }
-                            
                         }
                         dispatch_semaphore_signal(this->_semaphore);
                         close(fd);
@@ -167,32 +168,18 @@ class MTLReadPixels {
             }
             
             return nullptr;
-            
         }
 };
 
 #else
 
 template <typename T>
-class MTLReadPixels {
-    
-    private:
-    
-        PixelBuffer<T> *_buffer;
+class MTLReadPixels : public MTLReadPixelsBasse<T> {
     
     public:
     
-        std::string type() { return this->_buffer->type(); }
-        int width() { return this->_buffer->width(); }
-        int height() { return this->_buffer->height(); }
-        int bpp() { return this->_buffer->bpp(); }
-        void *bytes() { return this->_buffer->bytes(); }
-        unsigned int rowBytes() { return this->_buffer->rowBytes(); }
-        
-        MTLReadPixels(int w,int h, int bpp=4) {
-            
-            this->_buffer = new PixelBuffer<T>(w,h,bpp);
-        }
+        MTLReadPixels(int w,int h, int bpp=4) : MTLReadPixelsBasse<T>(w,h,bpp) {
+                    }
         
         void *getBytes(id<MTLTexture> src, bool shader=false) {
             if(src) {
@@ -205,7 +192,6 @@ class MTLReadPixels {
         }
         
         ~MTLReadPixels() {
-            delete this->_buffer;
         }
         
 };
