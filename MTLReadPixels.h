@@ -79,7 +79,6 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                             if(this->_buffer->type()=="f") {
                                 if(bpp==4) {
                                     texDescriptor = MTLUtils::descriptor(MTLPixelFormatRGBA32Float,this->width(),this->height());
-                                    
                                 }
                                 else if(bpp==2) {
                                     texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG32Float,this->width(),this->height());
@@ -178,8 +177,7 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
     
     public:
     
-        MTLReadPixels(int w,int h, int bpp=4) : MTLReadPixelsBasse<T>(w,h,bpp) {
-                    }
+        MTLReadPixels(int w,int h, int bpp=4) : MTLReadPixelsBasse<T>(w,h,bpp) {}
         
         void *getBytes(id<MTLTexture> src, bool shader=false) {
             if(src) {
