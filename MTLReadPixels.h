@@ -49,9 +49,9 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
         MTLReadPixels(int w,int h, int bpp=4, NSString *identifier=nil) : MTLReadPixelsBasse<T>(w,h,bpp) {
             
     #ifdef TARGET_OS_OSX
-            NSString *metallib = MTLUtils::path(@"copy-macosx.metallib",identifier);
+            NSString *metallib = FileManager::path(@"copy-macosx.metallib",identifier);
     #else
-            NSString *metallib = MTLUtils::path(@"copy-iphoneos.metallib",identifier);
+            NSString *metallib = FileManager::path(@"copy-iphoneos.metallib",identifier);
     #endif
             
             NSError *err = nil;
