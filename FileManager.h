@@ -11,6 +11,12 @@ namespace FileManager {
         return ([[filename pathExtension] compare:ext]==NSOrderedSame)?true:false;
     }
 
+    long size(NSString *filename) {
+        NSError *err = nil;
+        NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:filename error:&err];
+        return (err)?-1:[[attributes objectForKey:NSFileSize] integerValue];
+    }
+
     int indexOf(NSString *path, NSString *search) {
         NSRange range = [path rangeOfString:search];
         return (range.location==NSNotFound)?-1:(int)range.location;
@@ -29,12 +35,7 @@ namespace FileManager {
     }
     
     NSString *concat(NSString *a, NSString *b) {
-        if(a==nil) {
-            return b;
-        }
-        else {
-            return replace([NSString stringWithFormat:@"%@/%@",a,b],@"//",@"/");
-        }
+        return (a==nil)?b:replace([NSString stringWithFormat:@"%@/%@",a,b],@"//",@"/");
     }
     
     NSString *removePlatform(NSString *str) {

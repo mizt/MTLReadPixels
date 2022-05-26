@@ -42,7 +42,6 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
             
         dispatch_semaphore_t _semaphore = dispatch_semaphore_create(0);
                 
-        MTLPixelFormat PixelFormat8Unorm = MTLPixelFormatRGBA8Unorm;
 
     public:
         
@@ -51,74 +50,70 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
             NSString *metallib = (dir&&FileManager::indexOf(dir,@".metallib")>0)?dir:
                 FileManager::path(FileManager::addPlatform(FileManager::concat(dir,@"copy.metallib")),identifier);
             
-            if(metallib) {
-                NSError *err = nil;
-                NSFileManager *fileManager = [NSFileManager defaultManager];
-                [fileManager attributesOfItemAtPath:metallib error:&err];
+            if(metallib&&FileManager::exists(metallib)) {
                 
-                if(!err) {
-                    
-                    dispatch_fd_t fd = open([metallib UTF8String],O_RDONLY);
-                        
-                    NSDictionary *attributes = [fileManager attributesOfItemAtPath:metallib error:&err];
-                    long size = [[attributes objectForKey:NSFileSize] integerValue];
-                    
-                    if(size>0) {
-                        
-                        dispatch_read(fd,size,dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),^(dispatch_data_t d,int e) {
-                        
-                            NSError *err = nil;
-                            id<MTLLibrary> library = [this->_device newLibraryWithData:d error:&err];
-                                                
-                            if(!err) {
-                                
-                                MTLTextureDescriptor *texDescriptor = nil;
-                                
-                                if(this->_pixelbuffer->type()=="f") {
-                                    if(bpp==4) {
-                                        texDescriptor = MTLUtils::descriptor(MTLPixelFormatRGBA32Float,this->width(),this->height());
-                                    }
-                                    else if(bpp==2) {
-                                        texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG32Float,this->width(),this->height());
-                                    }
-                                    else if(bpp==1) {
-                                        texDescriptor = MTLUtils::descriptor(MTLPixelFormatR32Float,this->width(),this->height());
-                                    }
-                                }
-                                else if(this->_pixelbuffer->type()=="S"&&bpp==2) {
-                                    texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG16Unorm,this->width(),this->height());
-                                }
-                                else if(this->_pixelbuffer->type()=="I"&&bpp==4) {
-
-                                    texDescriptor = MTLUtils::descriptor(this->PixelFormat8Unorm,this->width(),this->height());
-                                }
-                                
-                                if(texDescriptor) {
-                                    
-                                    texDescriptor.usage = MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
-                                    this->_texture = [this->_device newTextureWithDescriptor:texDescriptor];
-                                    this->_clip = MTLUtils::newBuffer(this->_device,sizeof(unsigned int)*2);
-
-                                    unsigned int *clipContents = (unsigned int *)[this->_clip contents];
-                                    clipContents[0] = this->width();
-                                    clipContents[1] = this->height();
-                                    
-                                    id<MTLFunction> function = [library newFunctionWithName:@"copy"];
-                                    this->_pipelineState = [this->_device newComputePipelineStateWithFunction:function error:nil];
-                                    if(!err) {
+                long size = FileManager::size(metallib);
+                
+                if(size>0) {
                                         
-                                        this->_isInit = true;
-                                    }
+                    dispatch_fd_t fd = open([metallib UTF8String],O_RDONLY);
+                    
+                    dispatch_read(fd,size,dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),^(dispatch_data_t d,int e) {
+                    
+                        NSError *err = nil;
+                        id<MTLLibrary> library = [this->_device newLibraryWithData:d error:&err];
+                                            
+                        if(!err) {
+                            
+                            MTLTextureDescriptor *texDescriptor = nil;
+                            
+                            if(this->_pixelbuffer->type()=="f") {
+                                if(bpp==4) {
+                                    texDescriptor = MTLUtils::descriptor(MTLPixelFormatRGBA32Float,this->width(),this->height());
+                                }
+                                else if(bpp==2) {
+                                    texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG32Float,this->width(),this->height());
+                                }
+                                else if(bpp==1) {
+                                    texDescriptor = MTLUtils::descriptor(MTLPixelFormatR32Float,this->width(),this->height());
                                 }
                             }
-                            dispatch_semaphore_signal(this->_semaphore);
-                            close(fd);
-                        });
-                        dispatch_semaphore_wait(this->_semaphore,DISPATCH_TIME_FOREVER);
-                        
-                    }
+                            else if(this->_pixelbuffer->type()=="S"&&bpp==2) {
+                                texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG16Unorm,this->width(),this->height());
+                            }
+                            else if(this->_pixelbuffer->type()=="I"&&bpp==4) {
+                                texDescriptor = MTLUtils::descriptor(MTLUtils::PixelFormat8Unorm,this->width(),this->height());
+                            }
+                            
+                            if(texDescriptor) {
+                                
+                                texDescriptor.usage = MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
+                                this->_texture = [this->_device newTextureWithDescriptor:texDescriptor];
+                                this->_clip = MTLUtils::newBuffer(this->_device,sizeof(unsigned int)*2);
+
+                                unsigned int *clipContents = (unsigned int *)[this->_clip contents];
+                                clipContents[0] = this->width();
+                                clipContents[1] = this->height();
+                                
+                                id<MTLFunction> function = [library newFunctionWithName:@"copy"];
+                                this->_pipelineState = [this->_device newComputePipelineStateWithFunction:function error:&err];
+                                if(!err) {
+                                    this->_isInit = true;
+                                }
+                            }
+                        }
+                        dispatch_semaphore_signal(this->_semaphore);
+                        close(fd);
+                    });
+                    dispatch_semaphore_wait(this->_semaphore,DISPATCH_TIME_FOREVER);
+                    
                 }
             }
+        }
+    
+        ~MTLReadPixels() {
+            this->_texture = nil;
+            this->_clip = nil;
         }
     
         void *getBytes(id<MTLTexture> src, bool shader=true) {
@@ -151,7 +146,6 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                     [encoder dispatchThreadgroups:threadGroups threadsPerThreadgroup:threadGroupSize];
                     [encoder endEncoding];
                     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer) {
-                        
                         [this->_texture getBytes:this->_pixelbuffer->bytes() bytesPerRow:this->_pixelbuffer->rowBytes() fromRegion:MTLRegionMake2D(0,0,this->_pixelbuffer->width(),this->_pixelbuffer->height()) mipmapLevel:0];
                         dispatch_semaphore_signal(this->_semaphore);
                     }];
@@ -189,13 +183,8 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                 
                 return this->_pixelbuffer->bytes();
             }
-        
             return nullptr;
         }
-        
-        ~MTLReadPixels() {
-        }
-        
 };
 
 #endif
