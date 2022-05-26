@@ -26,8 +26,8 @@ class MTLReadPixelsBasse {
         }
 };
 
-#if TARGET_CPU_ARM64 && TARGET_OS_OSX
-
+//#if TARGET_CPU_ARM64 && !TARGET_IPHONE_SIMULATOR
+#if TARGET_CPU_ARM64
 template <typename T>
 class MTLReadPixels : public MTLReadPixelsBasse<T> {
 
@@ -46,17 +46,10 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
 
     public:
         
-        MTLReadPixels(int w,int h, int bpp=4, NSString *identifier=nil) : MTLReadPixelsBasse<T>(w,h,bpp) {
+        MTLReadPixels(int w,int h, int bpp=4, NSString *dir=nil, NSString *identifier=nil) : MTLReadPixelsBasse<T>(w,h,bpp) {
             
-#ifdef TARGET_OS_OSX
-            NSString *metallib = FileManager::path(@"copy-macosx.metallib",identifier);
-#elif TARGET_OS_SIMULATOR
-            NSString *metallib = FileManager::path(@"copy-iphonesimulator.metallib",identifier);
-#elif TARGET_OS_IPHONE
-            NSString *metallib = FileManager::path(@"copy-iphoneos.metallib",identifier);
-#else
-            NSString *metallib = nil;
-#endif
+            NSString *metallib = (dir&&FileManager::indexOf(dir,@".metallib")>0)?dir:
+                FileManager::path(FileManager::addPlatform(FileManager::concat(dir,@"copy.metallib")),identifier);
             
             if(metallib) {
                 NSError *err = nil;
@@ -78,7 +71,7 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                             id<MTLLibrary> library = [this->_device newLibraryWithData:d error:&err];
                                                 
                             if(!err) {
-                                                            
+                                
                                 MTLTextureDescriptor *texDescriptor = nil;
                                 
                                 if(this->_pixelbuffer->type()=="f") {
@@ -92,23 +85,28 @@ class MTLReadPixels : public MTLReadPixelsBasse<T> {
                                         texDescriptor = MTLUtils::descriptor(MTLPixelFormatR32Float,this->width(),this->height());
                                     }
                                 }
-                                else if(this->_pixelbuffer->type()=="S"&&bpp==4) {
+                                else if(this->_pixelbuffer->type()=="S"&&bpp==2) {
                                     texDescriptor = MTLUtils::descriptor(MTLPixelFormatRG16Unorm,this->width(),this->height());
                                 }
                                 else if(this->_pixelbuffer->type()=="I"&&bpp==4) {
+
                                     texDescriptor = MTLUtils::descriptor(this->PixelFormat8Unorm,this->width(),this->height());
                                 }
                                 
                                 if(texDescriptor) {
+                                    
                                     texDescriptor.usage = MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
                                     this->_texture = [this->_device newTextureWithDescriptor:texDescriptor];
                                     this->_clip = MTLUtils::newBuffer(this->_device,sizeof(unsigned int)*2);
+
                                     unsigned int *clipContents = (unsigned int *)[this->_clip contents];
                                     clipContents[0] = this->width();
                                     clipContents[1] = this->height();
+                                    
                                     id<MTLFunction> function = [library newFunctionWithName:@"copy"];
                                     this->_pipelineState = [this->_device newComputePipelineStateWithFunction:function error:nil];
                                     if(!err) {
+                                        
                                         this->_isInit = true;
                                     }
                                 }
