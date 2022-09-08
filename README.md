@@ -1,6 +1,9 @@
 # MTLReadPixels
 
-For some reason [getBytes:bytesPerRow:fromRegion:mipmapLevel:](https://developer.apple.com/documentation/metal/mtltexture/1515751-getbytes?language=objc) for drawable's texture is very slow on M1and A14, so copy drawable's texture by the compute shader and then get the bytes.
+For some reason [getBytes:bytesPerRow:fromRegion:mipmapLevel:](https://developer.apple.com/documentation/metal/mtltexture/1515751-getbytes?language=objc) for drawable's texture is very slow on M1 and A14, so copy drawable's texture by the compute shader and then get the bytes.
+
+see also:  
+[https://twitter.com/mogamogamachine/status/1389109666978811907](https://twitter.com/mogamogamachine/status/1389109666978811907)
 
 #### macosx
 
